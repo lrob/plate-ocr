@@ -4,6 +4,7 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 import pathlib
 
@@ -205,8 +206,22 @@ model.summary()
 
 print("Number or variable to be trained:", len(model.trainable_variables))
 
+CHECKPOINT_PATH = "../checkpoint/cp.ckpt"
+checkpoint_dir = os.path.dirname(CHECKPOINT_PATH)
 
-initial_epochs = 100
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_PATH,
+                                                 save_weights_only=True,
+                                                 verbose=1,
+                                                 save_freq=2000)
+
+
+if(os.path.isdir(checkpoint_dir) and os.listdir(checkpoint_dir) != []):
+  print("Loading weights")
+  model.load_weights(CHECKPOINT_PATH)
+else:
+  print("Starting training from scratch")
+
+initial_epochs = 10
 steps_per_epoch = train_size//BATCH_SIZE
 validation_steps = 3
 
@@ -216,12 +231,13 @@ loss0,accuracy0_0, accuracy1_0 = model.evaluate(dev_batches, steps = validation_
 
 print("initial loss, plate accuracy and character accuracy: ", loss0, accuracy0_0, accuracy1_0)
 
-
 history = model.fit(train_batches,
                     epochs=initial_epochs,
-                    validation_data=dev_batches)
+                    validation_data=dev_batches,
+                    callbacks=[cp_callback])
 
-
+MODEL_PATH = checkpoint_dir + "/model.h5"
+model.save(MODEL_PATH) 
 
 
 
