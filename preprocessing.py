@@ -11,9 +11,12 @@ LETTERS = np.array(['A','B','C','D','E','F','G','H','L','M','P','R','S','T','V',
 NUMBERS = np.array(['1','2','3','4','5','6','7','8','9','0'])
 
 
+
 BATCH_SIZE = 32
-IMG_HEIGHT = 110
-IMG_WIDTH = 520
+REAL_IMG_HEIGHT = 110
+REAL_IMG_WIDTH = 520
+img_height = 96
+img_width = int(REAL_IMG_WIDTH * img_height / REAL_IMG_HEIGHT)
 #STEPS_PER_EPOCH = np.ceil(image_count/BATCH_SIZE)
 
 data_dir = "/home/roberto/Documents/2019-11-04-cnn-ocr/plates"
@@ -60,7 +63,7 @@ def decode_img(img):
   # Use `convert_image_dtype` to convert to floats in the [0,1] range.
   img = tf.image.convert_image_dtype(img, tf.float32)
   # resize the image to the desired size.
-  return tf.image.resize(img, [IMG_WIDTH, IMG_HEIGHT])
+  return tf.image.resize(img, [img_width, img_height])
 
 def process_path(file_path):
   label = get_label(file_path)
@@ -80,12 +83,148 @@ list_ds = tf.data.Dataset.list_files(str(data_dir/'*.jpg'))
 #tf.enable_eager_execution()
 labeled_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 
- 
-  
+DATASET_SIZE = 550
+TRAIN_PERC_SIZE = 0.8
 
-# image_count = len(list(data_dir.glob('*.jpg')))
+train_size = int(DATASET_SIZE * TRAIN_PERC_SIZE)
+train_ds = labeled_ds.take(train_size)
+dev_ds = labeled_ds.skip(train_size) 
 
-# image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1./255)
+BATCH_SIZE = 32
+SHUFFLE_BUFFER_SIZE = 1000
+
+train_batches = train_ds.shuffle(SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE)
+dev_batches = dev_ds.batch(BATCH_SIZE)
+
+for image_batch, label_batch in train_batches.take(1):
+   pass
+
+print("image batch shape:", image_batch.shape)
+
+IMG_SHAPE = (img_width, img_height, 3)
+
+# Create the base model from the pre-trained model MobileNet V2
+base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+                                               include_top=False,
+                                               weights='imagenet')
+
+
+feature_batch = base_model(image_batch)
+print("feature map batch shape:", feature_batch.shape)
+
+#base_model.trainable = False
+
+# Let's take a look to see how many layers are in the base model
+#print("Number of layers in the base model: ", len(base_model.layers))
+
+# Fine tune from this layer onwards
+#fine_tune_at = 100
+
+# Freeze all the layers before the `fine_tune_at` layer
+#for layer in base_model.layers[:fine_tune_at]:
+#  layer.trainable =  False
+
+
+
+base_model.summary()
+
+global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
+feature_batch_average = global_average_layer(feature_batch)
+print("Dimensio after avarate pooling:", feature_batch_average.shape)
+
+prediction_layer = tf.keras.layers.Dense(LETTERS.shape[0] * 4 + NUMBERS.shape[0] * 3, activation="sigmoid")
+prediction_batch = prediction_layer(feature_batch_average)
+print("Dimension after dense layer:", prediction_batch.shape)
+
+model = tf.keras.Sequential([
+  base_model,
+  global_average_layer,
+  prediction_layer
+])
+
+def evaluateCharacter(y_true, y_pred, begin_character, end_character):
+  true_class = tf.keras.backend.argmax(y_true[:,begin_character:end_character], axis=1)
+  predicted_class = tf.keras.backend.argmax(y_pred[:,begin_character:end_character], axis=1)
+  return tf.keras.backend.cast(predicted_class == true_class, dtype = tf.uint8)
+
+#evChar = evaluateCharacter([0,0,0,1], [0,0,0,1], 0, 4) + evaluateCharacter([0,0,0,1], [0,0,0,1], 0, 4)
+
+#print("evChar", evChar)
+#print("evaluate character.shape" , evChar.shape)
+
+
+def getNumCorretCharacters(y_true, y_pred):
+  current_index = 0
+  num_correct_character_predicted = evaluateCharacter(y_true, y_pred, current_index, current_index + LETTERS.shape[0])
+  current_index += LETTERS.shape[0]
+  num_correct_character_predicted += evaluateCharacter(y_true, y_pred, current_index, current_index + LETTERS.shape[0]) 
+  current_index += LETTERS.shape[0]
+  num_correct_character_predicted += evaluateCharacter(y_true, y_pred, current_index, current_index + NUMBERS.shape[0]) 
+  current_index += NUMBERS.shape[0]
+  num_correct_character_predicted += evaluateCharacter(y_true, y_pred, current_index, current_index + NUMBERS.shape[0])
+  current_index += NUMBERS.shape[0]
+  num_correct_character_predicted += evaluateCharacter(y_true, y_pred, current_index, current_index + NUMBERS.shape[0])
+  current_index += NUMBERS.shape[0]
+  num_correct_character_predicted += evaluateCharacter(y_true, y_pred, current_index, current_index + LETTERS.shape[0])
+  current_index += LETTERS.shape[0]
+  num_correct_character_predicted += evaluateCharacter(y_true, y_pred, current_index, current_index + LETTERS.shape[0]) 
+  return num_correct_character_predicted
+
+y_true_arg = np.zeros((32,126))
+y_pred_arg = np.zeros((32,126))
+
+y_true_arg[:,9] = y_true_arg[:,29] = y_true_arg[:,50] = y_true_arg[:,60] = y_true_arg[:,70] = y_true_arg[:,80] = y_true_arg[:,120] = 1 
+y_pred_arg[:,9] = y_pred_arg[:,29] = y_pred_arg[:,50] = y_pred_arg[:,60] = y_pred_arg[:,70] = y_pred_arg[:,80] = y_pred_arg[:,120] = 1 
+#print("getNumCorrectCharacters", getNumCorretCharacters(y_true_arg, y_pred_arg))
+
+y_true_arg = tf.convert_to_tensor(y_true_arg)
+y_pred_arg = tf.convert_to_tensor(y_pred_arg)
+
+
+NUM_CHARACTERS_PLATE = 7
+def characterAccuracy(y_true, y_pred):
+  num_correct_character_predicted = getNumCorretCharacters(y_true, y_pred)
+  return num_correct_character_predicted/NUM_CHARACTERS_PLATE
+  #return tf.keras.backend.mean(y_true)
+
+print("characterAccuracy", characterAccuracy(y_true_arg, y_pred_arg))
+
+def plateAccuracy(y_true, y_pred):
+  num_correct_character_predicted = getNumCorretCharacters(y_true, y_pred) 
+  return tf.keras.backend.cast(tf.math.equal(num_correct_character_predicted, tf.constant(NUM_CHARACTERS_PLATE, dtype=tf.uint8)), dtype = tf.uint8)
+
+print("plateAccuracy", plateAccuracy(y_true_arg, y_pred_arg))
+
+
+model.compile(loss=tf.keras.losses.binary_crossentropy,
+              optimizer=tf.keras.optimizers.Adam(lr=0.0001, beta_1=0.99, beta_2=0.9999, epsilon=None, decay=0.0, amsgrad=False),
+              #metrics=[characterAccuracy])
+              metrics=[plateAccuracy, characterAccuracy])
+
+model.summary()
+
+print("Number or variable to be trained:", len(model.trainable_variables))
+
+
+initial_epochs = 100
+steps_per_epoch = train_size//BATCH_SIZE
+validation_steps = 3
+
+print("steps per epoch: ", steps_per_epoch)
+
+loss0,accuracy0_0, accuracy1_0 = model.evaluate(dev_batches, steps = validation_steps)
+
+print("initial loss, plate accuracy and character accuracy: ", loss0, accuracy0_0, accuracy1_0)
+
+
+history = model.fit(train_batches,
+                    epochs=initial_epochs,
+                    validation_data=dev_batches)
+
+
+
+
+
 
 
 
