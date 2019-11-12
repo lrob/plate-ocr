@@ -20,7 +20,7 @@ img_height = 96
 img_width = int(REAL_IMG_WIDTH * img_height / REAL_IMG_HEIGHT)
 #STEPS_PER_EPOCH = np.ceil(image_count/BATCH_SIZE)
 
-data_dir = "/home/roberto/Documents/2019-11-04-cnn-ocr/plates"
+data_dir = "plates/"
 data_dir = pathlib.Path(data_dir)
 
 def get_label(file_path):
@@ -206,7 +206,7 @@ model.summary()
 
 print("Number or variable to be trained:", len(model.trainable_variables))
 
-CHECKPOINT_PATH = "../checkpoint/cp.ckpt"
+CHECKPOINT_PATH = "checkpoint/cp.ckpt"
 checkpoint_dir = os.path.dirname(CHECKPOINT_PATH)
 
 cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_PATH,
