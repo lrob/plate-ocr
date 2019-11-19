@@ -84,7 +84,7 @@ list_ds = tf.data.Dataset.list_files(str(data_dir/'*.jpg'))
 #tf.enable_eager_execution()
 labeled_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 
-DATASET_SIZE = 550
+DATASET_SIZE = 100000
 TRAIN_PERC_SIZE = 0.8
 
 train_size = int(DATASET_SIZE * TRAIN_PERC_SIZE)
@@ -94,7 +94,31 @@ dev_ds = labeled_ds.skip(train_size)
 BATCH_SIZE = 32
 SHUFFLE_BUFFER_SIZE = 1000
 
-train_batches = train_ds.shuffle(SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE)
+
+def prepare_for_training(ds, cache=True, shuffle_buffer_size=1000):
+  # This is a small dataset, only load it once, and keep it in memory.
+  # use `.cache(filename)` to cache preprocessing work for datasets that don't
+  # fit in memory.
+  if cache:
+    if isinstance(cache, str):
+      ds = ds.cache(cache)
+    else:
+      ds = ds.cache()
+
+  ds = ds.shuffle(buffer_size=shuffle_buffer_size)
+
+  # Repeat forever
+  ds = ds.repeat()
+
+  ds = ds.batch(BATCH_SIZE)
+
+  # `prefetch` lets the dataset fetch batches in the background while the model
+  # is training.
+  ds = ds.prefetch(buffer_size=AUTOTUNE)
+
+  return ds
+
+train_batches = prepare_for_training(train_ds, "./train_batches_caches.ch", SHUFFLE_BUFFER_SIZE)
 dev_batches = dev_ds.batch(BATCH_SIZE)
 
 for image_batch, label_batch in train_batches.take(1):
@@ -233,6 +257,7 @@ print("initial loss, plate accuracy and character accuracy: ", loss0, accuracy0_
 
 history = model.fit(train_batches,
                     epochs=initial_epochs,
+                    steps_per_epoch=steps_per_epoch,
                     validation_data=dev_batches,
                     callbacks=[cp_callback])
 
