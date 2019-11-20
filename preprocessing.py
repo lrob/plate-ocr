@@ -84,7 +84,7 @@ list_ds = tf.data.Dataset.list_files(str(data_dir/'*.jpg'))
 #tf.enable_eager_execution()
 labeled_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 
-DATASET_SIZE = 100000
+DATASET_SIZE = 99998
 TRAIN_PERC_SIZE = 0.8
 
 train_size = int(DATASET_SIZE * TRAIN_PERC_SIZE)
@@ -245,7 +245,7 @@ if(os.path.isdir(checkpoint_dir) and os.listdir(checkpoint_dir) != []):
 else:
   print("Starting training from scratch")
 
-initial_epochs = 10
+initial_epochs = 100
 steps_per_epoch = train_size//BATCH_SIZE
 validation_steps = 3
 
