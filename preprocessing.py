@@ -5,6 +5,8 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import signal
+import sys
 
 import pathlib
 
@@ -19,6 +21,7 @@ REAL_IMG_WIDTH = 520
 img_height = 96
 img_width = int(REAL_IMG_WIDTH * img_height / REAL_IMG_HEIGHT)
 #STEPS_PER_EPOCH = np.ceil(image_count/BATCH_SIZE)
+
 
 data_dir = "plates/"
 data_dir = pathlib.Path(data_dir)
@@ -253,6 +256,14 @@ print("steps per epoch: ", steps_per_epoch)
 
 loss0,accuracy0_0, accuracy1_0 = model.evaluate(dev_batches, steps = validation_steps)
 
+MODEL_PATH = checkpoint_dir + "/model.h5"
+
+def signal_handler(sig, frame):
+        model.save(MODEL_PATH)
+        sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
 print("initial loss, plate accuracy and character accuracy: ", loss0, accuracy0_0, accuracy1_0)
 
 history = model.fit(train_batches,
@@ -261,7 +272,7 @@ history = model.fit(train_batches,
                     validation_data=dev_batches,
                     callbacks=[cp_callback])
 
-MODEL_PATH = checkpoint_dir + "/model.h5"
+
 model.save(MODEL_PATH) 
 
 
