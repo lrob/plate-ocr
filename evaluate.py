@@ -31,37 +31,37 @@ def from_array_to_plate(prediction_array):
   plate = ''
   
   current_index = 0
-  sub_array = prediction[0:LETTERS.shape[0]]
+  sub_array = prediction[current_index: current_index + LETTERS.shape[0]]
   character_idx = np.argmax(sub_array)
   plate += LETTERS[character_idx]
   current_index += LETTERS.shape[0]
 
-  sub_array = prediction[0:LETTERS.shape[0]]
+  sub_array = prediction[current_index:current_index + LETTERS.shape[0]]
   character_idx = np.argmax(sub_array)
   plate +=  LETTERS[character_idx]
   current_index += LETTERS.shape[0]
 
-  sub_array = prediction[0:NUMBERS.shape[0]]
+  sub_array = prediction[current_index:current_index + NUMBERS.shape[0]]
   character_idx = np.argmax(sub_array)
   plate +=  NUMBERS[character_idx]
   current_index += NUMBERS.shape[0]
 
-  sub_array = prediction[0:NUMBERS.shape[0]]
+  sub_array = prediction[current_index:current_index + NUMBERS.shape[0]]
   character_idx = np.argmax(sub_array)
   plate +=  NUMBERS[character_idx]
   current_index += NUMBERS.shape[0]
 
-  sub_array = prediction[0:NUMBERS.shape[0]]
+  sub_array = prediction[current_index:current_index + NUMBERS.shape[0]]
   character_idx = np.argmax(sub_array)
   plate +=  NUMBERS[character_idx]
   current_index += NUMBERS.shape[0]
 
-  sub_array = prediction[0:LETTERS.shape[0]]
+  sub_array = prediction[current_index:current_index + LETTERS.shape[0]]
   character_idx = np.argmax(sub_array)
   plate +=  LETTERS[character_idx]
   current_index += LETTERS.shape[0]
 
-  sub_array = prediction[0:LETTERS.shape[0]]
+  sub_array = prediction[current_index:current_index + LETTERS.shape[0]]
   character_idx = np.argmax(sub_array)
   plate +=  LETTERS[character_idx]
 
